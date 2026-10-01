@@ -1,0 +1,65 @@
+x-app: &app
+  build: .
+  env_file: .env
+  volumes:
+    - .:/app
+  depends_on:
+    db:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+
+services:
+  web:
+    <<: *app
+    command: uvicorn config.asgi:application --host 0.0.0.0 --port 8000 --reload
+    ports:
+      - "8000:8000"
+
+  worker:
+    <<: *app
+    command: celery -A config worker --loglevel=info
+
+  beat:
+    <<: *app
+    # Plain celery beat; schedule lives in settings.CELERY_BEAT_SCHEDULE.
+    # State file kept outside the bind mount so it doesn't land in the repo.
+    command: celery -A config beat --loglevel=info --schedule=/tmp/celerybeat-schedule
+
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: incident
+      POSTGRES_USER: incident
+      POSTGRES_PASSWORD: incident
+    ports:
+      # Host 5433 avoids clashing with a locally installed Postgres on 5432.
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U incident -d incident"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  localstack:
+    image: localstack/localstack:latest
+    profiles: ["aws"]
+    environment:
+      SERVICES: cloudwatch,logs,cloudtrail,sqs,s3,events
+    ports:
+      - "4566:4566"
+
+volumes:
+  pgdata:

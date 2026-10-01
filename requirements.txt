@@ -1,0 +1,12 @@
+Django~=6.1.1
+djangorestframework~=3.18
+channels~=4.3
+channels-redis~=4.3
+uvicorn[standard]~=0.54
+psycopg[binary]~=3.3
+django-environ~=0.12
+celery[redis]~=5.6
+redis~=6.4
+boto3~=1.40
+anthropic>=0.70
+slack_sdk~=3.36
